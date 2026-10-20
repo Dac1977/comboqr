@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPERADMIN
+  ADMIN
+  SCANNER
+}
+
+enum VoucherStatus {
+  ACTIVE
+  EXHAUSTED
+  VOID
+}
+
+model Institution {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  users     User[]
+  combos    Combo[]
+}
+
+model User {
+  id            String      @id @default(cuid())
+  email         String      @unique
+  name          String
+  passwordHash  String
+  role          Role        @default(SCANNER)
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  createdAt     DateTime    @default(now())
+  combos        Combo[]
+  redemptions   Redemption[]
+}
+
+model Combo {
+  id            String      @id @default(cuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  title         String
+  items         String[]
+  value         Decimal     @db.Decimal(10, 2)
+  totalStock    Int
+  createdById   String
+  createdBy     User        @relation(fields: [createdById], references: [id])
+  createdAt     DateTime    @default(now())
+  vouchers      Voucher[]
+}
+
+model Voucher {
+  id            String        @id @default(cuid())
+  comboId       String
+  combo         Combo         @relation(fields: [comboId], references: [id])
+  token         String        @unique
+  totalQty      Int
+  redeemedQty   Int           @default(0)
+  status        VoucherStatus @default(ACTIVE)
+  recipientInfo String?
+  createdAt     DateTime      @default(now())
+  redemptions   Redemption[]
+
+  @@index([comboId])
+}
+
+model Redemption {
+  id          String   @id @default(cuid())
+  voucherId   String
+  voucher     Voucher  @relation(fields: [voucherId], references: [id])
+  quantity    Int
+  scannedById String
+  scannedBy   User     @relation(fields: [scannedById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([voucherId])
+}

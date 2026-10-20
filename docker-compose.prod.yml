@@ -1,0 +1,50 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://comboqr:${DB_PASSWORD:-comboqr}@db:5432/comboqr
+      SESSION_SECRET: ${SESSION_SECRET:?define SESSION_SECRET en .env}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: comboqr
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-comboqr}
+      POSTGRES_DB: comboqr
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U comboqr -d comboqr"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Backup diario de la base (conserva 7 días)
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      PGPASSWORD: ${DB_PASSWORD:-comboqr}
+    volumes:
+      - backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: |
+      sh -c 'while true; do
+        pg_dump -h db -U comboqr comboqr | gzip > /backups/comboqr-$$(date +%Y%m%d).sql.gz
+        find /backups -name "comboqr-*.sql.gz" -mtime +7 -delete
+        sleep 86400
+      done'
+
+volumes:
+  pgdata:
+  backups:
