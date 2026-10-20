@@ -49,6 +49,92 @@ export async function createCombo(
   redirect(`/combos/${combo.id}`);
 }
 
+const updateComboSchema = createComboSchema.extend({
+  comboId: z.string().min(1),
+});
+
+export async function updateCombo(
+  _prev: { error?: string },
+  formData: FormData
+): Promise<{ error?: string }> {
+  const user = await requireAdmin();
+  const parsed = updateComboSchema.safeParse({
+    comboId: formData.get("comboId"),
+    title: formData.get("title"),
+    items: formData.get("items"),
+    value: formData.get("value"),
+    totalStock: formData.get("totalStock"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const { comboId, title, value, totalStock } = parsed.data;
+  const items = parsed.data.items
+    .split("\n")
+    .map((i) => i.trim())
+    .filter(Boolean);
+  if (items.length === 0) return { error: "Indica al menos un elemento" };
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT id FROM "Combo" WHERE id = ${comboId} FOR UPDATE`;
+
+      const combo = await tx.combo.findFirst({
+        where: { id: comboId, institutionId: user.institutionId },
+        include: { vouchers: { where: { status: { not: "VOID" } } } },
+      });
+      if (!combo) throw new Error("Combo no encontrado");
+
+      const asignados = combo.vouchers.reduce((s, v) => s + v.totalQty, 0);
+      if (totalStock < asignados) {
+        throw new Error(
+          `El stock no puede bajar de ${asignados} (ya asignado a QRs)`
+        );
+      }
+
+      await tx.combo.update({
+        where: { id: comboId },
+        data: { title, items, value, totalStock },
+      });
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error al actualizar" };
+  }
+
+  revalidatePath(`/combos/${comboId}`);
+  revalidatePath("/combos");
+  revalidatePath("/dashboard");
+  redirect(`/combos/${comboId}`);
+}
+
+export async function deleteCombo(comboId: string): Promise<{ error?: string }> {
+  const user = await requireAdmin();
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const combo = await tx.combo.findFirst({
+        where: { id: comboId, institutionId: user.institutionId },
+        include: { vouchers: true },
+      });
+      if (!combo) throw new Error("Combo no encontrado");
+
+      if (combo.vouchers.some((v) => v.redeemedQty > 0)) {
+        throw new Error(
+          "No se puede eliminar: hay QRs con entregas registradas. Anulá los QRs activos en su lugar."
+        );
+      }
+
+      await tx.voucher.deleteMany({ where: { comboId } });
+      await tx.combo.delete({ where: { id: comboId } });
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error al eliminar" };
+  }
+
+  revalidatePath("/combos");
+  revalidatePath("/dashboard");
+  redirect("/combos");
+}
+
 const generateSchema = z.object({
   comboId: z.string().min(1),
   count: z.coerce.number().int().min(1).max(500),

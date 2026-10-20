@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { GenerateVouchersForm } from "./generate-form";
 import { VoucherRow } from "./voucher-row";
+import { DeleteComboButton } from "./delete-button";
 
 export default async function ComboDetailPage({
   params,
@@ -37,6 +38,15 @@ export default async function ComboDetailPage({
           ← Combos
         </Link>
         <h1 className="text-xl font-bold">{combo.title}</h1>
+        <div className="ml-auto flex items-center gap-2">
+          <Link
+            href={`/combos/${combo.id}/edit`}
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium hover:bg-gray-50"
+          >
+            Editar
+          </Link>
+          <DeleteComboButton comboId={combo.id} />
+        </div>
       </div>
 
       <section className="rounded-xl bg-white p-4 ring-1 ring-gray-200">
