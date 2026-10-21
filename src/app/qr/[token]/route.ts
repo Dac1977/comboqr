@@ -1,17 +1,17 @@
+import { ImageResponse } from "next/og";
 import QRCode from "qrcode";
-import sharp from "sharp";
 import { getCurrentUser } from "@/lib/dal";
 import { prisma } from "@/lib/prisma";
 import { voucherUrl } from "@/lib/vouchers";
+import { QrCard } from "./qr-card";
 
-function escapeXml(s: string) {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
+const fontRegular = fetch(
+  "https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.woff"
+).then((r) => r.arrayBuffer());
+
+const fontBold = fetch(
+  "https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-700-normal.woff"
+).then((r) => r.arrayBuffer());
 
 function truncate(s: string, max: number) {
   return s.length > max ? s.slice(0, max - 1) + "…" : s;
@@ -31,34 +31,35 @@ export async function GET(
   });
   if (!voucher) return new Response("Not found", { status: 404 });
 
-  const qrSvg = await QRCode.toString(voucherUrl(token), {
-    type: "svg",
-    width: 460,
+  const qrDataUrl = await QRCode.toDataURL(voucherUrl(token), {
+    width: 400,
     margin: 0,
   });
 
-  const title = escapeXml(truncate(voucher.combo.title, 30));
+  const title = truncate(voucher.combo.title, 40);
   const note = voucher.recipientInfo
-    ? escapeXml(truncate(voucher.recipientInfo, 44))
+    ? truncate(voucher.recipientInfo, 60)
     : null;
   const meta = `${voucher.totalQty} combos · ${voucher.token.slice(0, 12)}`;
 
-  const height = note ? 600 : 570;
-  const positionedQr = qrSvg
-    .replace(/\s(width|height)="[^"]*"/g, "")
-    .replace("<svg", '<svg x="30" y="20" width="460" height="460"');
+  const [regular, bold] = await Promise.all([fontRegular, fontBold]);
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="520" height="${height}">
-  <rect width="100%" height="100%" rx="16" fill="white"/>
-  ${positionedQr}
-  <text x="260" y="512" text-anchor="middle" font-family="sans-serif" font-size="22" font-weight="bold" fill="#111">${title}</text>
-  ${note ? `<text x="260" y="540" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#2563eb">${note}</text>` : ""}
-  <text x="260" y="${height - 16}" text-anchor="middle" font-family="monospace" font-size="13" fill="#666">${meta}</text>
-</svg>`;
+  const image = new ImageResponse(
+    QrCard({ qrSrc: qrDataUrl, title, note, meta }),
+    {
+      width: 520,
+      height: 660,
+      fonts: [
+        { name: "Inter", data: regular, weight: 400, style: "normal" },
+        { name: "Inter", data: bold, weight: 700, style: "normal" },
+      ],
+      headers: { "Cache-Control": "private, no-cache" },
+    }
+  );
 
-  const png = await sharp(Buffer.from(svg)).png().toBuffer();
+  const png = await image.arrayBuffer();
 
-  return new Response(new Uint8Array(png), {
+  return new Response(png, {
     headers: {
       "Content-Type": "image/png",
       "Cache-Control": "private, no-cache",
