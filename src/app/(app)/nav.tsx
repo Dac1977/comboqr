@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const ITEMS = [
   { href: "/dashboard", label: "Panel", roles: ["SUPERADMIN", "ADMIN", "SCANNER"] },
   { href: "/combos", label: "Combos", roles: ["SUPERADMIN", "ADMIN"] },
+  { href: "/movimientos", label: "Movimientos", roles: ["SUPERADMIN", "ADMIN"] },
   { href: "/users", label: "Usuarios", roles: ["SUPERADMIN", "ADMIN"] },
   { href: "/instituciones", label: "Instituciones", roles: ["SUPERADMIN"] },
   { href: "/scan", label: "Escanear", roles: ["SUPERADMIN", "ADMIN", "SCANNER"] },

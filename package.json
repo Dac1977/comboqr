@@ -15,14 +15,17 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "@tanstack/react-table": "^8.21.3",
     "@yudiel/react-qr-scanner": "^2.6.0",
     "bcryptjs": "^3.0.3",
+    "clsx": "^2.1.1",
     "jose": "^6.2.12",
     "next": "16.4.2",
     "qrcode": "^1.5.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "^0.0.1",
+    "tailwind-merge": "^3.7.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
