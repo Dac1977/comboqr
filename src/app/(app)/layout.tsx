@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { requireUser } from "@/lib/dal";
 import { logout } from "@/app/login/actions";
 import { Nav } from "./nav";
@@ -14,15 +13,8 @@ export default async function AppLayout({
     <div className="min-h-screen pb-20 md:pb-0">
       <header className="sticky top-0 z-10 border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
-          <div className="flex items-center">
-            <Image
-              src="/logo.png"
-              alt="Logo"
-              width={46}
-              height={40}
-              className="h-10 w-auto"
-              priority
-            />
+          <div>
+            <span className="font-bold">ComboQR</span>
             <span className="ml-2 text-sm text-gray-500">
               {user.institution.name}
             </span>
